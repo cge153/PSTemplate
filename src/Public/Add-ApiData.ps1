@@ -15,7 +15,8 @@ function Add-ApiData {
     )
 
     begin {
-        $uri = "https://jsonplaceholder.typicode.com/posts"
+        $configPath = "$PSScriptRoot/../Config/config.json"
+        $config = Import-Configuration -Path $configPath
     }
 
     process {
@@ -31,7 +32,7 @@ function Add-ApiData {
             }
 
             $params = @{
-                Uri     = $uri
+                Uri     = $config.Uri
                 Method  = "Post"
                 Body    = $apiBody
                 Headers = $headers
@@ -40,7 +41,6 @@ function Add-ApiData {
         }
         catch {
             Write-Error $_.Exception.StatusCode
-            Write-Error $_ | select-object -property *
             return $null
         }
 

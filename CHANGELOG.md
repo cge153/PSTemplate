@@ -7,16 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2024-07-16
+
 ### Added
 
 - Folder structure
 - `README.md`
 - `CHANGELOG.md`
 - `build.ps1`
-- Functions `Get-ApiData.ps1`, `Add-ApiData.ps1`,`xxx`,
+- `config.json`
+- Public functions `Get-ApiData.ps1`, `Add-ApiData.ps1`
+- Private function `Import-Configuration`
 - Module files `PSTemplate.psd1` and `PSTemplate.psm1`
-
-## [0.0.1] - yyyy-mm-dd
 
 ## [Example] - yyyy-mm-dd
 

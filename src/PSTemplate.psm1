@@ -1,22 +1,19 @@
 #region module variables
-$moduleVariable = @{
+$moduleVariable = [PSCustomObject]@{
     Uri = $null
 }
-
+New-Variable -Name ModuleVariable -Value $moduleVariable -Scope Script -Force
 #endregion module variables
 
 #region dot source and export functions
-$scriptFolderTypes = @("Private", "Public")
-
-foreach ($scriptFolderType in $scriptFolderTypes) {
-    $scriptFolder = (Join-Path -Path $PSScriptRoot -ChildPath $scriptFolderType)
-    if (Test-Path -Path $scriptFolder) {
-        $scriptFiles = Get-ChildItem -Path $scriptFolder -Filter *.ps1
-        foreach ($scriptFile in $scriptFiles) {
+foreach ($scope in "Private", "Public") {
+    $scopeFolder = (Join-Path -Path $PSScriptRoot -ChildPath $scope)
+    if (Test-Path -Path $scopeFolder) {
+        foreach ($scriptFile in (Get-ChildItem -Path $scopeFolder -Filter *.ps1)) {
             . $scriptFile.FullName
 
-            if ($scriptFolderType -eq "Public") {
-                Export-ModuleMember -Function $scriptFile
+            if ($scope -eq "Public") {
+                Export-ModuleMember -Function $scriptFile -ErrorAction Stop
             }
         }
     }

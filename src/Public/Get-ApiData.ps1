@@ -3,13 +3,14 @@ function Get-ApiData {
     param ()
 
     begin {
-        $uri = "https://jsonplaceholder.typicode.com/posts"
+        $configPath = "$PSScriptRoot/../Config/config.json"
+        $config = Import-Configuration -Path $configPath
     }
 
     process {
         try {
             $params = @{
-                Uri = $uri
+                Uri = $config.Uri
             }
             $response = Invoke-RestMethod @params
         }
