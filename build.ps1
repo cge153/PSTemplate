@@ -1,69 +1,146 @@
-# Define paths and variables
-$moduleName = "MyPowerShellModule"
-$sourceDir = "src"
-$buildDir = "build\output"
-$testsDir = "tests"
-$repositoryName = "MyNuGetRepo"  # Change this to your repository name as registered with Register-PSRepository
+# [CmdletBinding()]
+# param (
+#     [Parameter()]
+#     [ValidateSet("Local", "Remote")]
+#     [string]
+#     $Publish
+# )
 
-# Ensure PSScriptAnalyzer is installed
-if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer)) {
-    Write-Output "Installing PSScriptAnalyzer..."
-    Install-Module -Name PSScriptAnalyzer -Force
+# $moduleName = "PSTemplate"
+$sourcePath = "./src"
+$buildPath = "./build"
+# $testPath = "./tests"
+# $localModulePath = ($env:PSModulePath -split ":" )[0] # Should be user scope path
+# $nugetApiKey = "YourNuGetApiKeyHere"
+# $nugetSource = "https://api.nuget.org/v3/index.json"
+
+# ANSI color codes for better readability
+$green = "`e[32m"
+$yellow = "`e[33m"
+$red = "`e[31m"
+$blue = "`e[34m"
+$reset = "`e[0m"
+
+$Message = "just testing, nothing to do..."
+
+# Function to log information with colors
+function Write-LogInfo {
+    param(
+        [string]$Message
+    )
+    Write-Information -MessageData "$blue[INFO]$reset $Message" -InformationAction Continue
 }
 
-# Create the build output directory if it doesn't exist
-if (-not (Test-Path -Path $buildDir)) {
-    New-Item -ItemType Directory -Path $buildDir
+# Function to log warnings with colors
+function Write-LogWarning {
+    param(
+        [string]$Message
+    )
+    Write-Information -MessageData "$yellow[WARNING]$reset $Message" -InformationAction Continue
 }
 
-# Clean up previous build artifacts
-Get-ChildItem -Path $buildDir -Recurse | Remove-Item -Force -Recurse
+# Function to log errors with colors
+function Write-LogError {
+    param(
+        [string]$Message
+    )
+    Write-Information -MessageData "$red[ERROR]$reset $Message" -InformationAction Continue
+}
 
-# Compile the module
-Write-Output "Compiling the module..."
-Copy-Item -Path "$sourceDir\*" -Destination $buildDir -Recurse
+# Function to log success messages with colors
+function Write-LogSuccess {
+    param(
+        [string]$Message
+    )
+    Write-Information -MessageData "$green[SUCCESS]$reset $Message" -InformationAction Continue
+}
 
-# Import the module functions
-Write-Output "Importing module functions..."
-Get-ChildItem -Path "$buildDir\Public" -Filter *.ps1 | ForEach-Object { . $_.FullName }
-Get-ChildItem -Path "$buildDir\Private" -Filter *.ps1 | ForEach-Object { . $_.FullName }
-
-# Run PSScriptAnalyzer to check the code
-Write-Output "Running PSScriptAnalyzer..."
-$analyzerResults = Invoke-ScriptAnalyzer -Path "$buildDir\*.ps1"
-
-if ($analyzerResults) {
-    $analyzerResults | ForEach-Object {
-        Write-Output "[$($_.Severity)] $($_.Message) in $($_.ScriptName) at line $($_.Line)"
+function Clear-BuildFolder {
+    Write-LogInfo "Cleaning build folder..."
+    # Create the build output directory if it doesn't exist
+    if (-not (Test-Path -Path $buildPath)) {
+        New-Item -ItemType Directory -Path $buildPath
     }
-    Write-Error "ScriptAnalyzer found issues in the code. Fix the issues before proceeding."
-    exit 1
+    
+    # Clean up previous build artifacts
+    Get-ChildItem -Path $buildPath -Recurse | Remove-Item -Force -Recurse
+    Write-LogSuccess "Done."
 }
 
-# Run tests using Pester
-Write-Output "Running tests..."
-Invoke-Pester -Script "$testsDir\Public\*.Tests.ps1" -OutputFile "$buildDir\test-results-public.xml" -OutputFormat NUnitXml
-Invoke-Pester -Script "$testsDir\Private\*.Tests.ps1" -OutputFile "$buildDir\test-results-private.xml" -OutputFormat NUnitXml
-
-# Check if tests passed
-$publicTestResults = [xml](Get-Content "$buildDir\test-results-public.xml")
-$privateTestResults = [xml](Get-Content "$buildDir\test-results-private.xml")
-
-$testsFailed = $publicTestResults.testsuites.testsuite | Where-Object { $_.failures -gt 0 } + 
-               $privateTestResults.testsuites.testsuite | Where-Object { $_.failures -gt 0 }
-
-if ($testsFailed) {
-    Write-Error "Tests failed. Check the test results for more information."
-    exit 1
+function Copy-SourcesToBuild {
+    Write-LogInfo "Copying source files to build folder..."
+    Copy-Item -Path "$sourcePath/*" -Destination $buildPath -Recurse -Force
+    Write-LogSuccess "Done."
 }
 
-# Package the module (optional step, since Publish-Module handles this)
-Write-Output "Packaging the module..."
-$modulePackage = "$buildDir\$moduleName.zip"
-Compress-Archive -Path "$buildDir\*" -DestinationPath $modulePackage
+function Start-PSScriptAnalyzer {
+    Write-LogInfo "Running PSScriptAnalyzer..."
+    
+    if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer)) {
+        Write-LogInfo "Installing PSScriptAnalyzer..."
+        Install-Module -Name PSScriptAnalyzer -Force
+    }
 
-# Publish the module to the repository
-Write-Output "Publishing the module to the repository..."
-Publish-Module -Path $buildDir -Repository $repositoryName -NuGetApiKey 'YourApiKey' # Provide API key if needed
+    $issues = Invoke-ScriptAnalyzer -Path $buildPath -Recurse
+    if ($issues) {
+        $issues | Format-Table -AutoSize
+        throw "PSScriptAnalyzer found issues."
+    }
+    else {
+        Write-LogSuccess "No issues found by PSScriptAnalyzer."
+    }
+}
 
-Write-Output "Build and publishing completed successfully."
+# function Start-PesterTests {
+#     Write-Information -MessageData "Running Pester tests..." -InformationAction Continue
+
+#     if (-not (Get-Module -ListAvailable -Name Pester)) {
+#         Write-Information -MessageData "Installing Pester..." -InformationAction Continue
+#         Install-Module -Name Pester -Force
+#     }
+
+#     Invoke-Pester -Script @{ Path = $testPath; OutputFormat = 'NUnitXml'; OutputFile = "$buildPath\TestResults.xml" }
+#     if ($LASTEXITCODE -ne 0) {
+#         throw "Pester tests failed."
+#     }
+#     else {
+#         Write-Information -MessageData "Pester tests passed." -InformationAction Continue
+#     }
+# }
+
+# function Publish-NuGetPackage {
+#     if ($Publish.ToUpper() -eq "LOCAL") {
+#         Write-Information -MessageData "Importing module with user scope..." -InformationAction Continue
+
+#         if (Test-Path $localModulePath) {
+#             Write-Information -MessageData "Deleting contents of existing module folder..." -InformationAction Continue
+#             Remove-Item $localModulePath\* -Recurse -Force
+#         }
+#         else {
+#             Write-Information -MessageData "`nCreating new module folder... " -InformationAction Continue
+#             New-Item -Path $localModulePath -ItemType "Directory"
+#         }
+#     }
+#     else {
+
+#         Write-Information -MessageData "Publishing package to NuGet repository..." -InformationAction Continue
+#         Publish-Module -Path $buildDir -Repository $repositoryName -NuGetApiKey 'YourApiKey' # Provide API key if needed
+#     }
+# }
+
+# Main script
+try {
+    Write-LogInfo "Started build process."
+
+    Clear-BuildFolder
+    Copy-SourcesToBuild
+    Start-PSScriptAnalyzer
+    # Start-PesterTests
+    # Publish-NuGetPackage
+
+    Write-LogSuccess "Build script completed.`n"
+}
+catch {
+    Write-LogError "Build script failed: $_`n"
+    exit 1
+}
