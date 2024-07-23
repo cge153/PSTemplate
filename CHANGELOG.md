@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2024-07-23
+
+### Changed
+
+- Added log functions to `build.ps1` to improve readability of output
+- Changed test API to `https://fakestoreapi.com`
+- Changed function name `Get-ApiData` to `Get-Product`
+
 ## [0.1.0] - 2024-07-16
 
 ### Added

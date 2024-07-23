@@ -1,16 +1,16 @@
-# [CmdletBinding()]
-# param (
-#     [Parameter()]
-#     [ValidateSet("Local", "Remote")]
-#     [string]
-#     $Publish
-# )
+[CmdletBinding()]
+param (
+    [Parameter()]
+    [ValidateSet("Local", "Remote")]
+    [string]
+    $Publish = "Local"
+)
 
-# $moduleName = "PSTemplate"
+$moduleName = "PSTemplate"
 $sourcePath = "./src"
 $buildPath = "./build"
 # $testPath = "./tests"
-# $localModulePath = ($env:PSModulePath -split ":" )[0] # Should be user scope path
+$localModulePath = "$(($env:PSModulePath -split ":" )[0])/$moduleName" # Should be user scope path
 # $nugetApiKey = "YourNuGetApiKeyHere"
 # $nugetSource = "https://api.nuget.org/v3/index.json"
 
@@ -21,42 +21,64 @@ $red = "`e[31m"
 $blue = "`e[34m"
 $reset = "`e[0m"
 
-$Message = "just testing, nothing to do..."
-
 # Function to log information with colors
 function Write-LogInfo {
     param(
-        [string]$Message
+        [string]$Message,
+        [switch]$PreNewLine,
+        [switch]$PostNewLine
     )
-    Write-Information -MessageData "$blue[INFO]$reset $Message" -InformationAction Continue
+    
+    $preLineBreak = if ($PreNewLine) { "`n" } else { "" }
+    $postLineBreak = if ($PostNewLine) { "`n" } else { "" }
+
+    Write-Information -MessageData "$preLineBreak$blue[ INFO    ]$reset $Message$postLineBreak" -InformationAction Continue
 }
 
 # Function to log warnings with colors
 function Write-LogWarning {
     param(
-        [string]$Message
+        [string]$Message,
+        [switch]$PreNewLine,
+        [switch]$PostNewLine
     )
-    Write-Information -MessageData "$yellow[WARNING]$reset $Message" -InformationAction Continue
+    
+    $preLineBreak = if ($PreNewLine) { "`n" } else { "" }
+    $postLineBreak = if ($PostNewLine) { "`n" } else { "" }
+
+    Write-Information -MessageData "$preLineBreak$yellow[ WARNING ]$reset $Message$postLineBreak" -InformationAction Continue
 }
 
 # Function to log errors with colors
 function Write-LogError {
     param(
-        [string]$Message
+        [string]$Message,
+        [switch]$PreNewLine,
+        [switch]$PostNewLine
     )
-    Write-Information -MessageData "$red[ERROR]$reset $Message" -InformationAction Continue
+    
+    $preLineBreak = if ($PreNewLine) { "`n" } else { "" }
+    $postLineBreak = if ($PostNewLine) { "`n" } else { "" }
+
+    Write-Information -MessageData "$preLineBreak$red[ ERROR   ]$reset $Message$postLineBreak" -InformationAction Continue
 }
 
 # Function to log success messages with colors
 function Write-LogSuccess {
     param(
-        [string]$Message
+        [string]$Message,
+        [switch]$PreNewLine,
+        [switch]$PostNewLine
     )
-    Write-Information -MessageData "$green[SUCCESS]$reset $Message" -InformationAction Continue
+    
+    $preLineBreak = if ($PreNewLine) { "`n" } else { "" }
+    $postLineBreak = if ($PostNewLine) { "`n" } else { "" }
+
+    Write-Information -MessageData "$preLineBreak$green[ SUCCESS ]$reset $Message$postLineBreak" -InformationAction Continue
 }
 
 function Clear-BuildFolder {
-    Write-LogInfo "Cleaning build folder..."
+    Write-LogInfo "Cleaning build folder: start"
     # Create the build output directory if it doesn't exist
     if (-not (Test-Path -Path $buildPath)) {
         New-Item -ItemType Directory -Path $buildPath
@@ -64,17 +86,17 @@ function Clear-BuildFolder {
     
     # Clean up previous build artifacts
     Get-ChildItem -Path $buildPath -Recurse | Remove-Item -Force -Recurse
-    Write-LogSuccess "Done."
+    Write-LogSuccess "Cleaning build folder: done" -PostNewLine
 }
 
 function Copy-SourcesToBuild {
-    Write-LogInfo "Copying source files to build folder..."
+    Write-LogInfo "Copying source files to build folder: start"
     Copy-Item -Path "$sourcePath/*" -Destination $buildPath -Recurse -Force
-    Write-LogSuccess "Done."
+    Write-LogSuccess "Copying source files to build folder: done" -PostNewLine
 }
 
 function Start-PSScriptAnalyzer {
-    Write-LogInfo "Running PSScriptAnalyzer..."
+    Write-LogInfo "Running PSScriptAnalyzer: start"
     
     if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer)) {
         Write-LogInfo "Installing PSScriptAnalyzer..."
@@ -89,6 +111,8 @@ function Start-PSScriptAnalyzer {
     else {
         Write-LogSuccess "No issues found by PSScriptAnalyzer."
     }
+
+    Write-LogSuccess "Running PSScriptAnalyzer: done" -PostNewLine
 }
 
 # function Start-PesterTests {
@@ -108,39 +132,47 @@ function Start-PSScriptAnalyzer {
 #     }
 # }
 
-# function Publish-NuGetPackage {
-#     if ($Publish.ToUpper() -eq "LOCAL") {
-#         Write-Information -MessageData "Importing module with user scope..." -InformationAction Continue
+function Publish-NuGetPackage {
+    if ($Publish.ToUpper() -eq "LOCAL") {
+        Write-LogInfo "Importing module with user scope: start"
 
-#         if (Test-Path $localModulePath) {
-#             Write-Information -MessageData "Deleting contents of existing module folder..." -InformationAction Continue
-#             Remove-Item $localModulePath\* -Recurse -Force
-#         }
-#         else {
-#             Write-Information -MessageData "`nCreating new module folder... " -InformationAction Continue
-#             New-Item -Path $localModulePath -ItemType "Directory"
-#         }
-#     }
-#     else {
+        if (Test-Path $localModulePath) {
+            Write-LogInfo "Deleting contents of existing module folder..."
+            Remove-Item $localModulePath\* -Recurse -Force
+        }
+        else {
+            Write-LogInfo "Creating new module folder..."
+            New-Item -Path $localModulePath -ItemType "Directory"
+        }
 
-#         Write-Information -MessageData "Publishing package to NuGet repository..." -InformationAction Continue
-#         Publish-Module -Path $buildDir -Repository $repositoryName -NuGetApiKey 'YourApiKey' # Provide API key if needed
-#     }
-# }
+        Write-LogInfo "Copying build files to module folder..."
+        Copy-Item -Path "$buildPath/*" -Destination $localModulePath -Recurse -Force
+
+        Write-LogInfo "Importing module..."
+        Import-Module $moduleName -Force
+
+        Write-LogSuccess "Importing module with user scope: done" -PostNewLine
+    }
+    # else {
+
+    #     Write-Information -MessageData "Publishing package to NuGet repository..." -InformationAction Continue
+    #     Publish-Module -Path $buildDir -Repository $repositoryName -NuGetApiKey 'YourApiKey' # Provide API key if needed
+    # }
+}
 
 # Main script
 try {
-    Write-LogInfo "Started build process."
+    Write-LogInfo "Build process: start" -PreNewLine -PostNewLine
 
     Clear-BuildFolder
     Copy-SourcesToBuild
     Start-PSScriptAnalyzer
     # Start-PesterTests
-    # Publish-NuGetPackage
+    Publish-NuGetPackage
 
-    Write-LogSuccess "Build script completed.`n"
+    Write-LogSuccess "Build process: end" -PostNewLine
 }
 catch {
-    Write-LogError "Build script failed: $_`n"
+    Write-LogError "Build process failed: $_" -PostNewLine
     exit 1
 }

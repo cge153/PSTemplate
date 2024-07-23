@@ -1,6 +1,10 @@
-function Get-ApiData {
+function Get-Product {
     [CmdletBinding()]
-    param ()
+    param (
+        [Parameter(Mandatory = $false)]
+        [Int16]
+        $Id
+    )
 
     begin {
         $configPath = "$PSScriptRoot/../Config/config.json"
@@ -9,8 +13,11 @@ function Get-ApiData {
 
     process {
         try {
+            $uri = "$($config.BaseUri)/products"
+            $uri += if ($Id) { "/$($Id.ToString())" }
+
             $params = @{
-                Uri = $config.Uri
+                Uri = $uri
             }
             $response = Invoke-RestMethod @params
         }
